@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accessibility Assistant Dash</title>
+    <style>
+        body {
+            background-color: #fcfbf7; /* Minimalist Soft Beige */
+            color: #111;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 25px;
+            color: #000;
+        }
+
+        #webcam {
+            width: 100%;
+            border-radius: 4px;
+            background-color: #000;
+            transform: scaleX(-1); /* Mirror view for natural alignment */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .scan-button {
+            width: 100%;
+            background-color: #cc0000; /* Bold Red Accent */
+            color: #fff;
+            border: none;
+            padding: 24px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            margin-top: 20px;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .scan-button:hover {
+            background-color: #990000;
+        }
+
+        .scan-button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Vision Ecosystem Dash</h1>
+        <video id="webcam" autoplay playsinline></video>
+        <button class="scan-button" id="scanBtn">Tap to Scan Environment</button>
+        <div id="status">Ready. Click the giant target zone above to look.</div>
+    </div>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const button = document.getElementById('scanBtn');
+        const statusDiv = document.getElementById('status');
+
+        // Hook onto native browser media devices pipeline
+        async function setupCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 768, height: 768 } });
+                video.srcObject = stream;
+            } catch (err) {
+                statusDiv.innerText = "❌ Browser camera access denied. Check system permissions.";
+                console.error(err);
+            }
+        }
+
+        async function captureAndProcess() {
+            button.disabled = true;
+            statusDiv.innerText = "⚡ Analyzing physical landscape...";
+
+            // Create memory canvas to capture current video snapshot
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('image', blob, 'web_capture.jpg');
+
+                try {
+                    // Send to your running Flask server architecture
+                    const response = await fetch('http://127.0.0.1:5001/analyze', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) throw new Error("Server engine error");
+
+                    statusDiv.innerText = "🔊 Playing auditory environment description...";
+                    
+                    // Convert incoming payload attachment into streamable object URL
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    const audio = new Audio();
+                    audio.src = audioUrl;
+                    
+                    // Enable button and clear up object data when audio completes
+                    audio.onended = () => {
+                        statusDiv.innerText = "Ready.";
+                        button.disabled = false;
+                        URL.revokeObjectURL(audioUrl);
+                    };
+                    
+                    // Trigger browser playback engine
+                    await audio.play();
+
+                } catch (error) {
+                    statusDiv.innerText = "❌ Playback or connection failed.";
+                    console.error(error);
+                    button.disabled = false;
+                }
+            }, 'image/jpeg', 0.8);
+        }
+
+        button.addEventListener('click', captureAndProcess);
+        window.addEventListener('DOMContentLoaded', setupCamera);
+    </script>
+</body>
+</html>
