@@ -1,0 +1,5 @@
+.env
+wand_capture.jpg
+wand_output.mp3
+.DS_Store
+__pycache__/
