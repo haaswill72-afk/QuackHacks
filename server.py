@@ -1,6 +1,6 @@
 import os
 import io
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, render_template_string
 from flask_cors import CORS
 from dotenv import load_dotenv
 from PIL import Image
@@ -18,6 +18,15 @@ CORS(app)  # Enable browser security clearance
 gemini_client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 eleven_client = ElevenLabs(api_key=os.environ.get("ELEVENLABS_API_KEY"))
 
+@app.route('/')
+def home():
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return render_template_string(html_content)
+    except Exception as e:
+        return f"Error loading index.html: {str(e)}", 500
+    
 @app.route('/analyze', methods=['POST'])
 def analyze_image():
     if 'image' not in request.files:
