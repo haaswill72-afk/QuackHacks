@@ -81,7 +81,7 @@ def analyze_image():
             "You are a helpful, empathetic assistant for a visually impaired user. "
             "Analyze this image taken from their device's camera. Describe exactly what is "
             "directly in front of them in 2 short, concise sentences. Focus purely on immediate utility, "
-            "reading any visible text, or pointing out physical obstructions."
+            "reading any visible text, or pointing out physical obstructions. mirror every image taken because it is taken on a front-facing camera"
         )
 
         print("🤖 Forwarding frame pipeline to Gemini API...")
