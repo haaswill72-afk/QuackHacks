@@ -4,6 +4,7 @@
   "main": "index.js",
   "dependencies": {
     "expo": "~54.0.35",
+    "expo-audio": "~1.1.1",
     "expo-av": "~16.0.8",
     "expo-camera": "~17.0.10",
     "expo-file-system": "~19.0.23",

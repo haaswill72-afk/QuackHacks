@@ -1,26 +1,44 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Camera, CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('Ready to Scan');
+  const [audioSource, setAudioSource] = useState(null);
   const cameraRef = useRef(null);
 
-  // ⚠️ CRITICAL HACKATHON CONFIGURATION:
-  // Since your laptop is 127.0.0.1, your physical phone CANNOT see it.
-  // Run `ngrok http 5001` in your terminal and paste your unique https link here!
+  // Initialize the native Expo Audio player node dynamically tied to state
+  const player = useAudioPlayer(audioSource);
+
+  // ⚠️ UPDATE THIS WITH YOUR ACTIVE NGROK LINK!
   const NGROK_URL = "https://your-ngrok-id.ngrok-free.app"; 
 
-  // Request system access to the mobile lens on boot
   useEffect(() => {
     if (!permission) {
       requestPermission();
     }
   }, [permission]);
+
+  // Handle playing the stream whenever the local source updates
+  useEffect(() => {
+    if (audioSource && player) {
+      player.play();
+      
+      // Reset status once audio finishes playing
+      const subscription = player.addListener('playbackStatusUpdate', (statusData) => {
+        if (statusData.didJustFinish) {
+          setStatus('Ready to Scan');
+          setLoading(false);
+          setAudioSource(null); // Clear buffer source
+        }
+      });
+      return () => subscription.remove();
+    }
+  }, [audioSource, player]);
 
   if (!permission) {
     return <View style={styles.container}><Text>Requesting camera permissions...</Text></View>;
@@ -44,24 +62,24 @@ export default function App() {
     setStatus('Capturing environment...');
 
     try {
-      // 1. Snapshot the viewport
-      const options = { quality: 0.8, skipProcessing: false };
+      // 1. Snapshot the mobile camera frame layout view
+      const options = { quality: 0.85 };
       const photo = await cameraRef.current.takePictureAsync(options);
       
       setStatus('Processing AI Audio...');
 
-      # 2. Package image as binary form data mirroring your web pipeline
-      const formData = new FormData();
-      formData.append('image', {
+      // 2. Correctly initialize FormData structure
+      const dataPayload = new FormData();
+      dataPayload.append('image', {
         uri: photo.uri,
         name: 'photo.jpg',
         type: 'image/jpeg',
       });
 
-      // 3. Post payload directly down your public internet tunnel
+      // 3. Post down the ngrok tunnel directly to server.py
       const response = await fetch(`${NGROK_URL}/analyze`, {
         method: 'POST',
-        body: formData,
+        body: dataPayload,
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -73,31 +91,17 @@ export default function App() {
 
       setStatus('Streaming description...');
 
-      // 4. Download and stream the MP3 data block without caching footprints
-      const audioUri = `${FileSystem.documentDirectory}wand_voice.mp3`;
+      // 4. Download file securely using FileSystem to local sandbox document directory
+      const localAudioUri = `${FileSystem.documentDirectory}wand_voice.mp3`;
       
-      // Explicitly pull stream to local secure temp storage
-      const { uri } = await FileSystem.downloadAsync(
-        `${NGROK_URL}/analyze`, // If your server sends it dynamically, download directly
-        audioUri,
-        {
-          headers: { 'Cache-Control': 'no-cache' }
-        }
+      await FileSystem.downloadAsync(
+        `${NGROK_URL}/analyze`,
+        localAudioUri,
+        { headers: { 'Cache-Control': 'no-cache' } }
       );
 
-      // 5. Fire audio out of system nodes
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: photo.uri }, // If streaming directly, bind to raw blob stream instead
-        { shouldPlay: true }
-      );
-
-      // Placeholder audio configuration simulation
-      // In advanced setups, play the downloaded `uri` variable directly
-      
-      setTimeout(() => {
-        setStatus('Ready to Scan');
-        setLoading(false);
-      }, 3000);
+      // 5. Update source to kick off the player useEffect hook loop
+      setAudioSource(localAudioUri);
 
     } catch (error) {
       console.error("Mobile stream crash:", error);
@@ -108,20 +112,24 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {/* Header telemetry status tracking strip */}
+      {/* Header telemetry strip */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>🪄 Accessibility Wand</Text>
         <Text style={styles.headerSubtitle}>{status}</Text>
       </View>
 
-      {/* Live Active Mobile Viewfinder */}
-      <CameraView style={styles.camera} facing="back" ref={cameraRef}>
+      {/* Main Viewport Container */}
+      <View style={styles.cameraContainer}>
+        {/* Self-closing CameraView prevents layout children children glitches */}
+        <CameraView style={styles.camera} facing="back" ref={cameraRef} />
+        
+        {/* Loading Spinner layered safely on top using absolute layouts */}
         {loading && (
           <View style={styles.overlay}>
             <ActivityIndicator size="large" color="#e63946" />
           </View>
         )}
-      </CameraView>
+      </View>
 
       {/* Tactile Accessible Scan Button Block */}
       <View style={styles.footer}>
@@ -163,13 +171,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '600',
   },
-  camera: {
+  cameraContainer: {
     flex: 1,
     position: 'relative',
+    backgroundColor: '#000000',
+  },
+  camera: {
+    flex: 1,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -184,11 +196,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   buttonDisabled: {
     backgroundColor: '#cccccc',
