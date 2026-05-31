@@ -15,7 +15,7 @@ export default function App() {
   const player = useAudioPlayer(audioSource);
 
   // ⚠️ UPDATE THIS WITH YOUR ACTIVE NGROK LINK!
-  const NGROK_URL = "https://your-ngrok-id.ngrok-free.app"; 
+  const NGROK_URL = "https://empty-birds-kiss.loca.lt"; 
 
   useEffect(() => {
     if (!permission) {
