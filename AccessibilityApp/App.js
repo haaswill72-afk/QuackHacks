@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as FileSystem from 'expo-file-system';
+import { File, Directory } from 'expo-file-system'; 
 import { useAudioPlayer } from 'expo-audio';
 
 export default function App() {
@@ -11,10 +11,9 @@ export default function App() {
   const [audioSource, setAudioSource] = useState(null);
   const cameraRef = useRef(null);
 
-  // Initialize the native Expo Audio player node dynamically tied to state
   const player = useAudioPlayer(audioSource);
 
-  // ⚠️ UPDATE THIS WITH YOUR ACTIVE NGROK LINK!
+  // ⚠️ CRITICAL: Ensure this matches your active ngrok/localtunnel link!
   const NGROK_URL = "https://empty-birds-kiss.loca.lt"; 
 
   useEffect(() => {
@@ -23,17 +22,15 @@ export default function App() {
     }
   }, [permission]);
 
-  // Handle playing the stream whenever the local source updates
   useEffect(() => {
     if (audioSource && player) {
       player.play();
       
-      // Reset status once audio finishes playing
       const subscription = player.addListener('playbackStatusUpdate', (statusData) => {
         if (statusData.didJustFinish) {
           setStatus('Ready to Scan');
           setLoading(false);
-          setAudioSource(null); // Clear buffer source
+          setAudioSource(null);
         }
       });
       return () => subscription.remove();
@@ -62,13 +59,14 @@ export default function App() {
     setStatus('Capturing environment...');
 
     try {
-      // 1. Snapshot the mobile camera frame layout view
       const options = { quality: 0.85 };
       const photo = await cameraRef.current.takePictureAsync(options);
       
       setStatus('Processing AI Audio...');
 
-      // 2. Correctly initialize FormData structure
+      // 1. Send the file data package over the network tunnel using a standard fetch request
+      const targetEndpoint = `${NGROK_URL}/analyze`;
+      
       const dataPayload = new FormData();
       dataPayload.append('image', {
         uri: photo.uri,
@@ -76,32 +74,32 @@ export default function App() {
         type: 'image/jpeg',
       });
 
-      // 3. Post down the ngrok tunnel directly to server.py
-      const response = await fetch(`${NGROK_URL}/analyze`, {
+      const response = await fetch(targetEndpoint, {
         method: 'POST',
         body: dataPayload,
         headers: {
+          'Accept': 'audio/mpeg',
           'Content-Type': 'multipart/form-data',
         },
       });
 
       if (!response.ok) {
-        throw new Error(`Server tracking fault: ${response.status}`);
+        throw new Error(`Server returned status code: ${response.status}`);
       }
 
       setStatus('Streaming description...');
 
-      // 4. Download file securely using FileSystem to local sandbox document directory
-      const localAudioUri = `${FileSystem.documentDirectory}wand_voice.mp3`;
-      
-      await FileSystem.downloadAsync(
-        `${NGROK_URL}/analyze`,
-        localAudioUri,
-        { headers: { 'Cache-Control': 'no-cache' } }
-      );
+      // 2. Read response as text (Base64 string from your server)
+      const base64AudioData = await response.text();
 
-      // 5. Update source to kick off the player useEffect hook loop
-      setAudioSource(localAudioUri);
+      // 3. Use the new SDK 54 File API to write the stream to the phone's cache directory
+      const localAudioFile = new File(Directory.cache, 'wand_voice.mp3');
+      await localAudioFile.writeAsStringAsync(base64AudioData, {
+        encoding: 'base64',
+      });
+
+      // 4. Set the audio player source to the path of our new file
+      setAudioSource(localAudioFile.uri);
 
     } catch (error) {
       console.error("Mobile stream crash:", error);
@@ -112,18 +110,13 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {/* Header telemetry strip */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>🪄 Accessibility Wand</Text>
         <Text style={styles.headerSubtitle}>{status}</Text>
       </View>
 
-      {/* Main Viewport Container */}
       <View style={styles.cameraContainer}>
-        {/* Self-closing CameraView prevents layout children children glitches */}
         <CameraView style={styles.camera} facing="back" ref={cameraRef} />
-        
-        {/* Loading Spinner layered safely on top using absolute layouts */}
         {loading && (
           <View style={styles.overlay}>
             <ActivityIndicator size="large" color="#e63946" />
@@ -131,7 +124,6 @@ export default function App() {
         )}
       </View>
 
-      {/* Tactile Accessible Scan Button Block */}
       <View style={styles.footer}>
         <TouchableOpacity 
           style={[styles.button, loading && styles.buttonDisabled]} 
@@ -148,62 +140,15 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#111111',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#666666',
-    marginTop: 4,
-    fontWeight: '600',
-  },
-  cameraContainer: {
-    flex: 1,
-    position: 'relative',
-    backgroundColor: '#000000',
-  },
-  camera: {
-    flex: 1,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footer: {
-    padding: 30,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-  },
-  button: {
-    backgroundColor: '#e63946',
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    backgroundColor: '#cccccc',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  header: { paddingTop: 60, paddingBottom: 20, backgroundColor: '#ffffff', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
+  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#111111' },
+  headerSubtitle: { fontSize: 14, color: '#666666', marginTop: 4, fontWeight: '600' },
+  cameraContainer: { flex: 1, position: 'relative', backgroundColor: '#000000' },
+  camera: { flex: 1 },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  footer: { padding: 30, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#e0e0e0' },
+  button: { backgroundColor: '#e63946', padding: 20, borderRadius: 12, alignItems: 'center' },
+  buttonDisabled: { backgroundColor: '#cccccc' },
+  buttonText: { color: '#ffffff', fontSize: 18, fontWeight: 'bold', letterSpacing: 1 },
 });
