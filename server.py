@@ -24,6 +24,7 @@ eleven_client = ElevenLabs(api_key=ELEVEN_KEY)
 app = Flask(__name__)
 CORS(app)
 
+latest_audio_cache = b""
 
 @app.after_request
 def add_no_cache_headers(response):

@@ -1,43 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { File, Directory } from 'expo-file-system'; 
 import { useAudioPlayer } from 'expo-audio';
-
-const SafeCameraView = React.forwardRef(({ onReady, style, facing }, ref) => {
-  const [layoutReady, setLayoutReady] = useState(false);
-  const [nativeReady, setNativeReady] = useState(false);
-
-  useEffect(() => {
-    if (layoutReady && nativeReady) {
-      onReady?.();
-    }
-  }, [layoutReady, nativeReady, onReady]);
-
-  return (
-    <View style={style} onLayout={() => setLayoutReady(true)}>
-      <CameraView
-        style={StyleSheet.absoluteFill}
-        facing={facing}
-        ref={ref}
-        onCameraReady={() => setNativeReady(true)}
-      />
-    </View>
-  );
-});
 
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('Ready to Scan');
-  const [audioSource, setAudioSource] = useState(null);
-  const [cameraReady, setCameraReady] = useState(false); // New stability flag
+  const [audioUrl, setAudioUrl] = useState(null); // Tracks the streaming URL timestamp
+  const [cameraReady, setCameraReady] = useState(false); 
   const cameraRef = useRef(null);
 
-  const player = useAudioPlayer(audioSource);
+  // ⚠️ CRITICAL: Must match your active localtunnel address exactly!
+  const TUNNEL_URL = "https://empty-birds-kiss.loca.lt"; 
 
-  // ⚠️ Ensure this matches your active localtunnel/ngrok address string!
-  const NGROK_URL = "https://empty-birds-kiss.loca.lt"; 
+  // Direct Network Stream Link: We append a random query parameter at the end (?t=...)
+  // This forces Expo Go to instantly pull down a fresh live audio stream instead of using a broken local path object
+  const player = useAudioPlayer(audioUrl ? `${TUNNEL_URL}/get_audio?t=${audioUrl}` : "");
 
   useEffect(() => {
     if (!permission) {
@@ -46,19 +25,19 @@ export default function App() {
   }, [permission]);
 
   useEffect(() => {
-    if (audioSource && player) {
+    if (audioUrl && player) {
       player.play();
       
       const subscription = player.addListener('playbackStatusUpdate', (statusData) => {
         if (statusData.didJustFinish) {
           setStatus('Ready to Scan');
           setLoading(false);
-          setAudioSource(null);
+          setAudioUrl(null); // Clear stream source state
         }
       });
       return () => subscription.remove();
     }
-  }, [audioSource, player]);
+  }, [audioUrl, player]);
 
   if (!permission) {
     return <View style={styles.container}><Text>Requesting camera permissions...</Text></View>;
@@ -76,15 +55,8 @@ export default function App() {
   }
 
   const captureAndAnalyze = async () => {
-    const cameraInstance = cameraRef.current;
-    const cameraAvailable = cameraInstance && typeof cameraInstance.takePictureAsync === 'function';
-
-    if (loading) {
-      return;
-    }
-
-    if (!cameraAvailable || !cameraReady) {
-      setStatus('Camera is not fully ready yet. Please wait a moment.');
+    if (loading || !cameraRef.current || !cameraReady) {
+      setStatus('Camera is not fully ready yet...');
       return;
     }
 
@@ -92,18 +64,21 @@ export default function App() {
     setStatus('Capturing environment...');
 
     try {
-      const options = { quality: 0.8, base64: false };
-      const photo = await cameraInstance.takePictureAsync(options).catch((captureError) => {
-        throw new Error(`Camera capture failed: ${captureError?.message || String(captureError)}`);
+      console.log("📸 [DEBUG] Attempting to snap picture...");
+      const photo = await cameraRef.current.takePictureAsync({ 
+        quality: 0.8,
+        skipProcessing: false
       });
+      
+      console.log("📸 [DEBUG] Camera returned photo object successfully.");
 
-      if (!photo || typeof photo !== 'object' || !photo.uri) {
-        throw new Error('Camera capture did not return a valid image object.');
+      if (!photo || !photo.uri) {
+        throw new Error("The camera hardware returned an invalid photo asset.");
       }
 
       setStatus('Processing AI Audio...');
 
-      const targetEndpoint = `${NGROK_URL}/analyze`;
+      const targetEndpoint = `${TUNNEL_URL}/analyze`;
       const dataPayload = new FormData();
       dataPayload.append('image', {
         uri: photo.uri,
@@ -111,12 +86,12 @@ export default function App() {
         type: 'image/jpeg',
       });
 
+      // Send the image down the tunnel to Gemini & ElevenLabs
       const response = await fetch(targetEndpoint, {
         method: 'POST',
         body: dataPayload,
         headers: {
-          Accept: 'audio/mpeg',
-          'Content-Type': 'multipart/form-data',
+          Accept: 'application/json',
         },
       });
 
@@ -124,17 +99,14 @@ export default function App() {
         throw new Error(`Server returned status code: ${response.status}`);
       }
 
-      setStatus('Streaming description...');
-      const base64AudioData = await response.text().catch((readError) => {
-        throw new Error(`Failed reading audio response: ${readError?.message || String(readError)}`);
-      });
+      const resultJson = await response.json();
+      console.log("🌐 [DEBUG] Server pipeline success confirmation:", resultJson);
 
-      const localAudioFile = new File(Directory.cache, 'wand_voice.mp3');
-      await localAudioFile.writeAsStringAsync(base64AudioData, {
-        encoding: 'base64',
-      });
+      setStatus('Playing description...');
+      
+      // Update the state with a fresh timestamp to force the audio player hook to trigger streaming
+      setAudioUrl(Date.now().toString());
 
-      setAudioSource(localAudioFile.uri);
     } catch (error) {
       console.error('Mobile stream crash:', error);
       setStatus(`Error: ${error?.message || 'Unknown camera error'}`);
@@ -145,16 +117,16 @@ export default function App() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🪄 Accessibility Wand</Text>
+        <Text style={styles.headerTitle}>🪄 Accessibility Text-To-Speech</Text>
         <Text style={styles.headerSubtitle}>{status}</Text>
       </View>
 
       <View style={styles.cameraContainer}>
-        <SafeCameraView
+        <CameraView
           style={styles.camera}
           facing="back"
           ref={cameraRef}
-          onReady={() => setCameraReady(true)}
+          onCameraReady={() => setCameraReady(true)}
         />
         {loading && (
           <View style={styles.overlay}>
@@ -165,10 +137,7 @@ export default function App() {
 
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={[
-            styles.button, 
-            (loading || !cameraReady) && styles.buttonDisabled
-          ]} 
+          style={[styles.button, (loading || !cameraReady) && styles.buttonDisabled]} 
           onPress={captureAndAnalyze}
           disabled={loading || !cameraReady}
         >
