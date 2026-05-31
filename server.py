@@ -53,16 +53,28 @@ def get_audio():
         as_attachment=False,
         download_name="wand_output.mp3"
     )
-
 @app.route("/analyze", methods=["POST"])
 def analyze_image():
-    if "image" not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
+    global latest_audio_cache
+    
+    # 🟢 FIXED: Automatically inspect all common file upload keys so your Web App doesn't break!
+    image_key = None
+    for key in ["image", "file", "picture"]:
+        if key in request.files:
+            image_key = key
+            break
+
+    if not image_key:
+        print("❌ [SERVER ERROR] Multi-part form missing valid file payload key.")
+        return jsonify({"error": "No image payload found in request parameters"}), 400
 
     try:
-        print("Browser snapshot received. Sending image to Gemini...")
+        print(f"📸 Snapshot received via '{image_key}' parameter field. Processing stream...")
 
-        image_bytes = request.files["image"].read()
+        image_bytes = request.files[image_key].read()
+        if not image_bytes:
+            raise ValueError("The uploaded image file buffer is completely empty.")
+
         pil_image = Image.open(io.BytesIO(image_bytes))
 
         prompt = (
@@ -72,13 +84,15 @@ def analyze_image():
             "reading any visible text, or pointing out physical obstructions."
         )
 
+        print("🤖 Forwarding frame pipeline to Gemini API...")
         response = gemini_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[pil_image, prompt],
         )
         description_text = response.text or "No identifiable objects detected."
-        print(f"Gemini analysis: {description_text}")
+        print(f"💬 Gemini analysis response: {description_text}")
 
+        print("🎙️ Contacting ElevenLabs Voice Synthesis Engine...")
         audio_stream = eleven_client.text_to_speech.convert(
             text=description_text,
             voice_id=VOICE_ID,
@@ -86,19 +100,33 @@ def analyze_image():
             output_format="mp3_44100_128",
         )
 
-        audio_bytes = b"".join(audio_stream)
-        print("Audio completed. Streaming MP3 to browser...")
+        # Build stream frames down to regional memory cache object
+        latest_audio_cache = b"".join(audio_stream)
+        print(f"🎵 ElevenLabs stream complete. Cached byte length: {len(latest_audio_cache)}")
 
-        return send_file(
-            io.BytesIO(audio_bytes),
-            mimetype="audio/mpeg",
-            as_attachment=False,
-            download_name="wand_output.mp3",
-        )
+        # 🟢 DUAL COMPATIBILITY: Look at what the client wants back!
+        # If your web app explicitly asks for audio via Accept headers, give it raw audio.
+        # Otherwise, give the mobile app its clean JSON verification frame.
+        client_accept = request.headers.get("Accept", "")
+        if "audio/mpeg" in client_accept:
+            print("🌐 [WEB APP ROUTE] Streaming raw binary bytes directly back to browser element.")
+            return send_file(
+                io.BytesIO(latest_audio_cache),
+                mimetype="audio/mpeg",
+                as_attachment=False,
+                download_name="wand_output.mp3",
+            )
+        
+        print("📱 [MOBILE APP ROUTE] Returning pipeline status JSON configuration framework.")
+        return jsonify({
+            "status": "success",
+            "message": "Audio generated successfully",
+            "description": description_text
+        })
 
     except Exception as e:
-        print(f"Error inside pipeline: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        print(f"❌ [CRITICAL PIPELINE EXCEPTION] Internal execution failed: {str(e)}")
+        return jsonify({"error": f"Internal pipeline crash: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
