@@ -42,6 +42,17 @@ def home():
     except Exception as e:
         return f"Error loading index.html: {str(e)}", 500
 
+@app.route("/get_audio", methods=["GET"])
+def get_audio():
+    global latest_audio_cache
+    if not latest_audio_cache:
+        return "No audio generated yet", 404
+    return send_file(
+        io.BytesIO(latest_audio_cache),
+        mimetype="audio/mpeg",
+        as_attachment=False,
+        download_name="wand_output.mp3"
+    )
 
 @app.route("/analyze", methods=["POST"])
 def analyze_image():
