@@ -130,7 +130,7 @@ export default function App() {
         />
         {loading && (
           <View style={styles.overlay}>
-            <ActivityIndicator size="large" color="#e63946" />
+            <ActivityIndicator size="large" color="#4539e6" />
           </View>
         )}
       </View>
