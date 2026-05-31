@@ -116,6 +116,16 @@ def analyze_image():
                 
         print(f"💾 Audio tracking completed. Streaming '{output_filename}' to browser components...")
         
+        @app.after_this_request
+        def remove_file(response):
+            try:
+                if os.path.exists(output_filename):
+                    os.remove(output_filename)
+                    print(f"🗑️ Successfully deleted cached file: {output_filename}")
+            except Exception as error:
+                print(f"⚠️ Could not auto-delete cache file: {error}")
+            return response
+        
         return send_file(
             output_filename, 
             mimetype="audio/mpeg",
