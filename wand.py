@@ -10,6 +10,7 @@ load_dotenv()
 
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 ELEVEN_KEY = os.environ.get("ELEVENLABS_API_KEY")
+VOICE_ID = os.environ.get("VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
 
 if not GEMINI_KEY or not ELEVEN_KEY:
     raise ValueError("❌ Missing API keys! Check your hidden .env file.")
@@ -59,7 +60,7 @@ def run_accessibility_wand():
     print("✨ [3/4] Sending analysis text to ElevenLabs voice engine...")
     audio_stream = eleven_client.text_to_speech.convert(
         text=description_text,
-        voice_id="21m00Tcm4TlvDq8ikWAM",  # Premium default 'Rachel' voice ID
+        voice_id=VOICE_ID,
         model_id="eleven_flash_v2_5",    # Low-latency model for fast hackathon responses
         output_format="mp3_44100_128"
     )
