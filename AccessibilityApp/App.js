@@ -4,7 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
 
 // ⚠️ Change this to your computer's local Wi-Fi IP (not localhost)
-const SERVER_IP = ' 10.108.200.76';
+const SERVER_IP = 'YOUR_IP_HERE';
 
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
