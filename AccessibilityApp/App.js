@@ -9,11 +9,12 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('Ready to Scan');
   const [audioSource, setAudioSource] = useState(null);
+  const [isCameraReady, setIsCameraReady] = useState(false); // New stability flag
   const cameraRef = useRef(null);
 
   const player = useAudioPlayer(audioSource);
 
-  // ⚠️ CRITICAL: Ensure this matches your active ngrok/localtunnel link!
+  // ⚠️ Ensure this matches your active localtunnel/ngrok address string!
   const NGROK_URL = "https://empty-birds-kiss.loca.lt"; 
 
   useEffect(() => {
@@ -53,20 +54,29 @@ export default function App() {
   }
 
   const captureAndAnalyze = async () => {
-    if (loading || !cameraRef.current) return;
+    // Fail immediately if the lens layout isn't fully mounted and ready
+    if (loading || !cameraRef.current || !isCameraReady) {
+      setStatus('Waiting for camera to fully load...');
+      return;
+    }
 
     setLoading(true);
     setStatus('Capturing environment...');
 
     try {
-      const options = { quality: 0.85 };
+      // 1. Snapshot execution containing an explicit validation option fallback
+      const options = { quality: 0.8, base64: false };
       const photo = await cameraRef.current.takePictureAsync(options);
       
+      // Secondary absolute layer validation check
+      if (!photo) {
+        throw new Error("Hardware lens pipeline timed out. Tap again.");
+      }
+
       setStatus('Processing AI Audio...');
 
-      // 1. Send the file data package over the network tunnel using a standard fetch request
+      // 2. Transmit the multipart image data framework
       const targetEndpoint = `${NGROK_URL}/analyze`;
-      
       const dataPayload = new FormData();
       dataPayload.append('image', {
         uri: photo.uri,
@@ -89,16 +99,15 @@ export default function App() {
 
       setStatus('Streaming description...');
 
-      // 2. Read response as text (Base64 string from your server)
+      // 3. Read the incoming text base64 frame stream bytes back directly
       const base64AudioData = await response.text();
 
-      // 3. Use the new SDK 54 File API to write the stream to the phone's cache directory
+      // 4. Save to phone sandbox partition utilizing standard structural files paths
       const localAudioFile = new File(Directory.cache, 'wand_voice.mp3');
       await localAudioFile.writeAsStringAsync(base64AudioData, {
         encoding: 'base64',
       });
 
-      // 4. Set the audio player source to the path of our new file
       setAudioSource(localAudioFile.uri);
 
     } catch (error) {
@@ -116,7 +125,13 @@ export default function App() {
       </View>
 
       <View style={styles.cameraContainer}>
-        <CameraView style={styles.camera} facing="back" ref={cameraRef} />
+        {/* Added onCameraReady callback hook to ensure hardware is fully sync-locked */}
+        <CameraView 
+          style={styles.camera} 
+          facing="back" 
+          ref={cameraRef}
+          onCameraReady={() => setIsCameraReady(true)}
+        />
         {loading && (
           <View style={styles.overlay}>
             <ActivityIndicator size="large" color="#e63946" />
@@ -126,12 +141,15 @@ export default function App() {
 
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={[styles.button, loading && styles.buttonDisabled]} 
+          style={[
+            styles.button, 
+            (loading || !isCameraReady) && styles.buttonDisabled
+          ]} 
           onPress={captureAndAnalyze}
-          disabled={loading}
+          disabled={loading || !isCameraReady}
         >
           <Text style={styles.buttonText}>
-            {loading ? "ANALYZING..." : "SCAN ENVIRONMENT"}
+            {!isCameraReady ? "WARMING UP..." : loading ? "ANALYZING..." : "SCAN ENVIRONMENT"}
           </Text>
         </TouchableOpacity>
       </View>
