@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   camera: { flex: 1 },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   footer: { padding: 30, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#e0e0e0' },
-  button: { backgroundColor: '#e63946', padding: 20, borderRadius: 12, alignItems: 'center' },
+  button: { backgroundColor: '#5339e6', padding: 20, borderRadius: 12, alignItems: 'center' },
   buttonDisabled: { backgroundColor: '#cccccc' },
   buttonText: { color: '#ffffff', fontSize: 18, fontWeight: 'bold', letterSpacing: 1 },
 });
