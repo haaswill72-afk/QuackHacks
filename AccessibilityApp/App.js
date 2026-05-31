@@ -3,8 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'rea
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
 
-// ⚠️ Change this to your computer's local Wi-Fi IP (not localhost)
-const SERVER_IP = 'YOUR_IP_HERE';
+const SERVER_IP = (process.env.EXPO_PUBLIC_SERVER_IP || '10.108.200.76').trim();
 
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
