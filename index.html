@@ -43,7 +43,7 @@
 
         .scan-button {
             width: 100%;
-            background-color: #cc0000;
+            background-color: #0066cc;
             color: #fff;
             border: none;
             padding: 24px;
@@ -57,7 +57,7 @@
         }
 
         .scan-button:hover {
-            background-color: #990000;
+            background-color: #004f9e;
         }
 
         .scan-button:disabled {
@@ -122,6 +122,9 @@
                 try {
                     const response = await fetch(`/analyze?t=${Date.now()}`, {
                         method: 'POST',
+                        headers: {
+                            'Accept': 'audio/mpeg'
+                        },
                         body: formData
                     });
 

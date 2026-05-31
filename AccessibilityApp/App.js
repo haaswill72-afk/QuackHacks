@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAudioPlayer } from 'expo-audio';
@@ -11,7 +11,7 @@ export default function App() {
   const [cameraReady, setCameraReady] = useState(false); 
   const cameraRef = useRef(null);
 
-  // ⚠️ CRITICAL: Must match your active localtunnel address exactly!
+  // âš ï¸ CRITICAL: Must match your active localtunnel address exactly!
   const TUNNEL_URL = "https://empty-birds-kiss.loca.lt"; 
 
   // Direct Network Stream Link: We append a random query parameter at the end (?t=...)
@@ -64,13 +64,13 @@ export default function App() {
     setStatus('Capturing environment...');
 
     try {
-      console.log("📸 [DEBUG] Attempting to snap picture...");
+      console.log("ðŸ“¸ [DEBUG] Attempting to snap picture...");
       const photo = await cameraRef.current.takePictureAsync({ 
         quality: 0.8,
         skipProcessing: false
       });
       
-      console.log("📸 [DEBUG] Camera returned photo object successfully.");
+      console.log("ðŸ“¸ [DEBUG] Camera returned photo object successfully.");
 
       if (!photo || !photo.uri) {
         throw new Error("The camera hardware returned an invalid photo asset.");
@@ -100,7 +100,7 @@ export default function App() {
       }
 
       const resultJson = await response.json();
-      console.log("🌐 [DEBUG] Server pipeline success confirmation:", resultJson);
+      console.log("ðŸŒ [DEBUG] Server pipeline success confirmation:", resultJson);
 
       setStatus('Playing description...');
       

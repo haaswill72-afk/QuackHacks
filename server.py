@@ -102,6 +102,14 @@ def analyze_image():
 
         # Build stream frames down to regional memory cache object
         latest_audio_cache = b"".join(audio_stream)
+        client_accept = request.headers.get("Accept", "")
+        if "application/json" not in client_accept or "audio/mpeg" in client_accept:
+            return send_file(
+                io.BytesIO(latest_audio_cache),
+                mimetype="audio/mpeg",
+                as_attachment=False,
+                download_name="wand_output.mp3",
+            )
         print(f"🎵 ElevenLabs stream complete. Cached byte length: {len(latest_audio_cache)}")
 
         # 🟢 DUAL COMPATIBILITY: Look at what the client wants back!

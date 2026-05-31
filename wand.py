@@ -1,4 +1,4 @@
-import time
+﻿import time
 import os
 from dotenv import load_dotenv
 import cv2
@@ -13,13 +13,13 @@ ELEVEN_KEY = os.environ.get("ELEVENLABS_API_KEY")
 VOICE_ID = os.environ.get("VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
 
 if not GEMINI_KEY or not ELEVEN_KEY:
-    raise ValueError("❌ Missing API keys! Check your hidden .env file.")
+    raise ValueError("âŒ Missing API keys! Check your hidden .env file.")
 
 gemini_client = genai.Client(api_key=GEMINI_KEY)
 eleven_client = ElevenLabs(api_key=ELEVEN_KEY)
 
 def run_accessibility_wand():
-    print("\n🚀 [1/4] Activating laptop webcam...")
+    print("\nðŸš€ [1/4] Activating laptop webcam...")
     
     # Open connection to the laptop's default camera
     camera = cv2.VideoCapture(0)
@@ -27,18 +27,18 @@ def run_accessibility_wand():
     
     ret, frame = camera.read()
     if not ret:
-        print("❌ Error: Webcam capture failed. Close Zoom, Discord, or FaceTime if they are running.")
+        print("âŒ Error: Webcam capture failed. Close Zoom, Discord, or FaceTime if they are running.")
         camera.release()
         return
         
     # Save the photo locally
     image_filename = "wand_capture.jpg"
     cv2.imwrite(image_filename, frame)
-    print(f"📷 Photo captured successfully and saved as '{image_filename}'")
+    print(f"ðŸ“· Photo captured successfully and saved as '{image_filename}'")
     camera.release()
 
     # 2. ASK GEMINI WHAT IT SEES
-    print("🧠 [2/4] Sending image to Gemini API...")
+    print("ðŸ§  [2/4] Sending image to Gemini API...")
     pil_image = Image.open(image_filename)
     
     prompt = (
@@ -54,10 +54,10 @@ def run_accessibility_wand():
     )
     
     description_text = response.text
-    print(f"🤖 Gemini Analysis: \"{description_text}\"")
+    print(f"ðŸ¤– Gemini Analysis: \"{description_text}\"")
 
     # 3. GENERATE HUMAN SPEECH VIA ELEVENLABS
-    print("✨ [3/4] Sending analysis text to ElevenLabs voice engine...")
+    print("âœ¨ [3/4] Sending analysis text to ElevenLabs voice engine...")
     audio_stream = eleven_client.text_to_speech.convert(
         text=description_text,
         voice_id=VOICE_ID,
@@ -67,13 +67,13 @@ def run_accessibility_wand():
 
     # 4. SAVE THE AUDIO FILE
     output_filename = "wand_output.mp3"
-    print(f"💾 [4/4] Saving output audio to '{output_filename}'...")
+    print(f"ðŸ’¾ [4/4] Saving output audio to '{output_filename}'...")
     
     with open(output_filename, "wb") as f:
         for chunk in audio_stream:
             f.write(chunk)
             
-    print(f"🎉 SUCCESS! The wand has spoken. Double-click '{output_filename}' to listen to it!")
+    print(f"ðŸŽ‰ SUCCESS! The wand has spoken. Double-click '{output_filename}' to listen to it!")
 
 if __name__ == "__main__":
     run_accessibility_wand()
