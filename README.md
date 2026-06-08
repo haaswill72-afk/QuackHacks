@@ -3,5 +3,5 @@ Our project is desgined to help the visually impared navigate daily life and mak
 
 Three terminal launch commands
 python server.py
-npx local tunnel port --5008
+npx localtunnel --port 5001
 npx expo start
